@@ -3,11 +3,15 @@
 import { GoogleGenAI, Modality, GenerateContentResponse, GenerateVideosOperation } from "@google/genai";
 import type { ImageAspectRatio } from '../types';
 
-const API_KEY = process.env.API_KEY;
-if (!API_KEY) {
-    throw new Error("API_KEY is not set in environment variables.");
-}
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+const getApiKey = () => {
+    const key = process.env.API_KEY;
+    if (!key) {
+        throw new Error("API_KEY is not set in environment variables. Please configure GEMINI_API_KEY.");
+    }
+    return key;
+};
+
+const getAi = () => new GoogleGenAI({ apiKey: getApiKey() });
 
 const dataUrlToPart = (dataUrl: string, mimeType: string) => {
     const base64Data = dataUrl.split(',')[1];
@@ -26,6 +30,7 @@ export const generateImageFromText = async (
     negativePrompt?: string
 ): Promise<{ newImages?: { base64: string; mimeType: 'image/png' }[], textResponse?: string }> => {
     try {
+        const ai = getAi();
         const response = await ai.models.generateImages({
             model: 'imagen-4.0-generate-001',
             prompt,
@@ -65,6 +70,7 @@ export const editImage = async (
             parts.push(dataUrlToPart(mask.href, mask.mimeType));
         }
 
+        const ai = getAi();
         const response: GenerateContentResponse = await ai.models.generateContent({
             model: 'gemini-2.5-flash-image',
             contents: { parts },
@@ -110,6 +116,7 @@ export const generateVideo = async (
             };
         }
 
+        const ai = getAi();
         let operation: GenerateVideosOperation = await ai.models.generateVideos({
             model: 'veo-2.0-generate-001',
             prompt,
@@ -136,7 +143,7 @@ export const generateVideo = async (
                 if (!downloadLink) {
                     throw new Error('Video generation succeeded but no download link was provided.');
                 }
-                const response = await fetch(`${downloadLink}&key=${API_KEY}`);
+                const response = await fetch(`${downloadLink}&key=${getApiKey()}`);
                 if (!response.ok) {
                     throw new Error(`Failed to download video: ${response.statusText}`);
                 }
@@ -164,6 +171,7 @@ export const getPromptFromImage = async (
             text: "Describe this image in detail. Provide a descriptive prompt that could be used to generate a similar image with an AI image generator. Focus on visual elements, style, composition, colors, and lighting. The description should be professional and concise."
         };
 
+        const ai = getAi();
         const response: GenerateContentResponse = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: { parts: [imagePart, textPart] },
